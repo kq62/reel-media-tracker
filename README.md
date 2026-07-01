@@ -578,6 +578,62 @@ poster gets the same richer hover state — including `/browse` and
 `/search`, which previously had no hover motion at all, just a border
 color change.
 
+### Follow-up: star centering, half-star, animations, and "Show more"
+
+Four polish items in one round.
+
+**Star centering.** Even after switching to a two-halves-per-star DOM
+approach, hovering the visual center of a star sometimes filled the
+wrong amount — the drift was worst on the second and fourth stars,
+zero at the middle. Root cause: the outline row, fill row, and
+interactive row all had `gap-1.5` between stars, but the "gap space"
+between two stars isn't inside either star's clickable slot, so a
+cursor over the gap did the wrong thing and the fill percent didn't
+map linearly to star boundaries. Fix: all three layers now use `gap-0`
+and rely on the star SVG's natural internal padding for visual
+separation. Now the fill percent maps exactly to star positions
+(`score 2.5 → 50% width → exactly half of the third star`), and the
+interactive halves line up 1:1 with the visual halves.
+
+**Half-star (not quarter).** The precision is `STEP = 0.5` in
+`rating-control.tsx` and validated as such in `/api/ratings/route.ts`
+(Zod `refine` on `score * 2` being a whole number). Ten possible values
+(0.5, 1, 1.5, ..., 5), matching the Letterboxd standard.
+
+**Route transitions.** A new `src/app/template.tsx` wraps every page in
+a container with a `page-enter` CSS animation (a subtle 250ms fade-up
+on mount). `template.tsx` is a Next.js built-in convention that
+re-mounts on every route change (unlike `layout.tsx`, which persists),
+so a plain CSS `@keyframes` runs on every navigation — no client-side
+animation library needed for something this simple.
+
+**Scroll-driven poster reveals.** Posters in catalog rows and the
+browse grid fade + rise into view as they scroll into the viewport,
+using `animation-timeline: view()` in CSS (a modern feature; degrades
+to no animation in browsers without support, which is a perfectly fine
+fallback state). No IntersectionObserver, no client-side JS.
+
+**Catalog scroll amount.** Instead of a fixed 600px per arrow click
+(which felt either barely-there or overshooting depending on screen
+size), the buttons now scroll ~90% of the container's own visible
+width — one "page" of visible cards at a time, with a bit of overlap
+so the edge card stays partly visible for continuity.
+
+**"Show more" pagination on `/browse`.** Instead of one hardcoded
+5-page fetch, `/browse` reads a `?pages=N` URL param (default 2, max
+10) and asks TMDB for that many pages. "Show more" is a plain `<Link
+scroll={false}>` that doubles the page count in the URL — the whole
+thing stays a Server Component with no `useState`, no infinite-scroll
+observer, and full bookmarkability of any depth. Once the max is
+reached, a small "everything popular in this list right now" note
+appears in place of the button.
+
+**Reduced-motion respect.** Every animation added here (`page-enter`,
+`poster-reveal`, `poster-reveal-x`, `animate-fade-in`) is silenced by
+a `@media (prefers-reduced-motion: reduce)` block in `globals.css` —
+anyone with vestibular sensitivity has that OS setting on for a
+reason, and no amount of visual delight is worth overriding it.
+
 
 
 

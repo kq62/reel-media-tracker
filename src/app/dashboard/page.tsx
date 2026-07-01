@@ -8,17 +8,57 @@ import { GenreStatsCloud } from "@/components/dashboard/genre-stats-cloud";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { RatingControl } from "@/components/rating-control";
 import { EmptyState } from "@/components/empty-state";
+import { RecommendationTeaser } from "@/components/dashboard/recommendation-teaser";
 import Link from "next/link";
+import { LIKED_THRESHOLD, type LikedTitleData } from "@/lib/recommendations";
+import { getMediaDetail, type MediaType } from "@/lib/tmdb";
+import { gatherAndScoreCandidates } from "@/lib/recommendation-candidates";
 
 export const metadata = {
   title: "Dashboard — Reel",
 };
 
-// Shared by the Watchlist and Ratings sections below — a responsive
-// card grid rather than one full-width column, which is what gave the
-// dashboard its "cramped" feel before: every card had to squeeze into a
-// thin horizontal strip the width of the whole page.
 const CARD_GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3";
+
+async function getQuickRecommendations(userId: string) {
+  try {
+    const likedRatings = await prisma.rating.findMany({
+      where: { userId, score: { gte: LIKED_THRESHOLD } },
+      include: { title: true },
+      orderBy: { score: "desc" },
+      take: 3,
+    });
+    if (likedRatings.length === 0) return [];
+
+    const likedTitleData: LikedTitleData[] = await Promise.all(
+      likedRatings.map(async (rating) => {
+        const mediaType = rating.mediaType as MediaType;
+        const detail = await getMediaDetail(mediaType, rating.tmdbId);
+        return {
+          tmdbId: rating.tmdbId,
+          mediaType,
+          score: rating.score,
+          genres: rating.title.genres,
+          cast: detail.credits.cast.slice(0, 5).map((m) => m.name),
+          keywords: [],
+        };
+      })
+    );
+
+    const seenItems = await prisma.watchlistItem.findMany({
+      where: { userId },
+      select: { tmdbId: true, mediaType: true },
+    });
+    const seenKeys = new Set([
+      ...seenItems.map((i) => `${i.mediaType}-${i.tmdbId}`),
+      ...likedRatings.map((r) => `${r.mediaType}-${r.tmdbId}`),
+    ]);
+
+    return gatherAndScoreCandidates({ likedTitleData, seenKeys, limit: 4 });
+  } catch {
+    return [];
+  }
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -32,7 +72,7 @@ export default async function DashboardPage() {
   // your "planned" list, per the /api/ratings auto-upsert behavior), so
   // they're fetched and rendered as separate sections rather than forced
   // into a single joined shape.
-  const [watchlistItems, ratings] = await Promise.all([
+  const [watchlistItems, ratings, quickRecs] = await Promise.all([
     prisma.watchlistItem.findMany({
       where: { userId },
       include: { title: true },
@@ -43,6 +83,7 @@ export default async function DashboardPage() {
       include: { title: true },
       orderBy: { ratedAt: "desc" },
     }),
+    getQuickRecommendations(userId),
   ]);
 
   const planned = watchlistItems.filter((item) => item.status === "planned");
@@ -65,6 +106,10 @@ export default async function DashboardPage() {
           <GenreStatsCloud counts={genreCounts} watchedCount={watched.length} />
         </div>
       </section>
+
+      {quickRecs.length > 0 && (
+        <RecommendationTeaser recommendations={quickRecs} />
+      )}
 
       <section>
         <h2 className="text-lg font-semibold">

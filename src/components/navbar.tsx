@@ -48,6 +48,12 @@ export function Navbar() {
           {status === "authenticated" && (
             <>
               <Link
+                href="/recommendations"
+                className="text-muted hover:text-foreground"
+              >
+                For You
+              </Link>
+              <Link
                 href="/dashboard"
                 className="text-muted hover:text-foreground"
               >

@@ -25,6 +25,7 @@ export interface TmdbSearchResult {
   poster_path: string | null;
   overview: string;
   vote_average: number;
+  vote_count: number; // needed to filter out statistically meaningless ratings
 }
 
 export interface TmdbCastMember {
@@ -219,6 +220,70 @@ export function tmdbImageUrl(
 ): string | null {
   if (!path) return null;
   return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
+}
+
+/**
+ * TMDB's "similar" endpoint returns titles that share genre/style with
+ * the given title. Quality varies a lot — it includes obscure and
+ * low-rated titles, so callers should filter by vote_average and
+ * vote_count before using these as recommendation candidates.
+ */
+export async function getSimilarTitles(
+  mediaType: MediaType,
+  tmdbId: number
+): Promise<TmdbSearchResult[]> {
+  const data = await tmdbFetch<{
+    results: Omit<TmdbSearchResult, "media_type">[];
+  }>(`/${mediaType}/${tmdbId}/similar`);
+  return data.results.map((r) => ({ ...r, media_type: mediaType }));
+}
+
+/**
+ * TMDB's "recommendations" endpoint is more editorially curated than
+ * "similar" — it tends to return well-known, higher-rated titles that
+ * share the same spirit as the seed, rather than anything loosely
+ * genre-adjacent regardless of quality. Using both endpoints and
+ * merging/deduplicating gives us a wider pool than either alone, with
+ * the recommendations endpoint contributing the higher-signal results.
+ */
+export async function getRecommendedTitles(
+  mediaType: MediaType,
+  tmdbId: number
+): Promise<TmdbSearchResult[]> {
+  const data = await tmdbFetch<{
+    results: Omit<TmdbSearchResult, "media_type">[];
+  }>(`/${mediaType}/${tmdbId}/recommendations`);
+  return data.results.map((r) => ({ ...r, media_type: mediaType }));
+}
+
+export interface TmdbKeyword {
+  id: number;
+  name: string;
+}
+
+/**
+ * Keywords are TMDB's fine-grained tags (e.g. "based on novel",
+ * "time travel", "female protagonist"). They're a richer similarity
+ * signal than genres alone — two thrillers may share a genre but differ
+ * completely in theme; shared keywords indicate closer thematic overlap.
+ * Movie and TV use different endpoint paths and response shapes, so we
+ * normalise them here.
+ */
+export async function getTitleKeywords(
+  mediaType: MediaType,
+  tmdbId: number
+): Promise<TmdbKeyword[]> {
+  if (mediaType === "movie") {
+    const data = await tmdbFetch<{ keywords: TmdbKeyword[] }>(
+      `/movie/${tmdbId}/keywords`
+    );
+    return data.keywords ?? [];
+  } else {
+    const data = await tmdbFetch<{ results: TmdbKeyword[] }>(
+      `/tv/${tmdbId}/keywords`
+    );
+    return data.results ?? [];
+  }
 }
 
 /** Pulls the display title regardless of movie ("title") vs tv ("name"). */

@@ -9,23 +9,32 @@ const STAR_COUNT = 5;
 const STEP = 0.5; // half-star precision, à la Letterboxd
 
 const SIZE_CONFIG = {
-  lg: { star: "size-10", gap: "gap-1.5", textareaRows: 3 },
-  sm: { star: "size-7", gap: "gap-1", textareaRows: 2 },
+  lg: { star: "size-10", gap: "gap-1", textareaRows: 3 },
+  sm: { star: "size-7", gap: "gap-0.5", textareaRows: 2 },
 } as const;
 
 /**
- * A row of five clickable star slots. Each star is its own element with
- * two clickable halves — so "half-star" isn't derived from pixel-math
- * across the whole row, it's driven by which physical half a pointer
- * actually enters. That side-steps the earlier centering bug (the star
- * SVG has transparent padding, so its visual center didn't line up with
- * the mathematical center of an equal-width slot) and naturally
- * enforces half-star precision at the same time.
+ * Per-star fill: each of the five stars renders its own outline and
+ * (if partially or fully filled) a clipped orange copy on top. The clip
+ * width is the star's *individual* fill fraction (0, 0.5, or 1) — not
+ * a percentage of the whole row. That side-steps every alignment bug
+ * the earlier "one big clipped row" approach ran into:
  *
- * Rendered on top of a muted outline row, the filled accent row is
- * still clipped to a single `width: X%`, so visual smoothness at any
- * value comes for free — the layered-row trick from the quarter-star
- * version still applies; only the input mapping changed.
+ *   1. The star SVG has natural padding inside its 24x24 viewBox (the
+ *      path only spans roughly x=2.5 to x=21.5). In the old approach,
+ *      when the total row was clipped at 90% for a 4.5 rating, the
+ *      absolute pixel position of the clip fell inside star 5's
+ *      invisible left-edge padding, so less than half of the *visible*
+ *      star showed as filled. Doing the clip per-star means each star's
+ *      fill is centered on its own visible geometry — a 50% clip on
+ *      star 5 shows exactly half of star 5's *visible* shape.
+ *
+ *   2. Gaps between stars no longer break the math — the fill math
+ *      per star doesn't depend on where the star sits in the row.
+ *
+ * The interactive layer is still one row of 10 half-buttons overlaid
+ * on the whole widget, so hover/click detection is trivial DOM entry
+ * events, not pixel math.
  */
 export function RatingControl({
   tmdbId,
@@ -50,10 +59,8 @@ export function RatingControl({
   const [commentDraft, setCommentDraft] = useState(initialComment ?? "");
   const [isPending, startTransition] = useTransition();
 
-  const { star: starSizeClass, gap: gapClass, textareaRows } =
-    SIZE_CONFIG[size];
+  const { star: starSizeClass, gap: gapClass, textareaRows } = SIZE_CONFIG[size];
   const displayValue = hoverValue ?? score ?? 0;
-  const fillPercent = (displayValue / STAR_COUNT) * 100;
 
   async function submitRating(value: number, commentToSend: string | null) {
     if (!isAuthenticated) {
@@ -113,36 +120,47 @@ export function RatingControl({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-4">
         <div
-          className="relative inline-flex select-none"
+          className={`relative flex select-none ${gapClass}`}
           onMouseLeave={() => setHoverValue(null)}
         >
-          {/* Muted outline row — the visual "bed" for the accent fill. */}
-          <div className={`flex ${gapClass} text-border`} aria-hidden="true">
-            {Array.from({ length: STAR_COUNT }).map((_, i) => (
-              <StarIcon key={i} className={starSizeClass} />
-            ))}
-          </div>
+          {Array.from({ length: STAR_COUNT }).map((_, i) => {
+            const starIndex = i + 1;
+            // How full is *this* individual star, on a 0-1 scale?
+            let fillFraction = 0;
+            if (displayValue >= starIndex) {
+              fillFraction = 1;
+            } else if (displayValue > starIndex - 1) {
+              fillFraction = displayValue - (starIndex - 1);
+            }
 
-          {/* Accent-filled row on top, clipped to fillPercent. */}
-          <div
-            className={`pointer-events-none absolute inset-0 flex ${gapClass} overflow-hidden text-accent transition-[width] duration-150 ease-out ${
-              hoverValue !== null
-                ? "drop-shadow-[0_0_8px_rgba(255,122,41,0.55)]"
-                : ""
-            }`}
-            style={{ width: `${fillPercent}%` }}
-            aria-hidden="true"
-          >
-            {Array.from({ length: STAR_COUNT }).map((_, i) => (
-              <StarIcon key={i} className={`${starSizeClass} shrink-0`} />
-            ))}
-          </div>
+            return (
+              <div key={i} className={`relative ${starSizeClass}`}>
+                {/* Outline star — the "bed" underneath. */}
+                <StarIcon
+                  className={`${starSizeClass} text-border`}
+                />
+                {/* Filled star clipped to this individual star's fill. */}
+                {fillFraction > 0 && (
+                  <div
+                    className={`pointer-events-none absolute inset-0 overflow-hidden text-accent transition-[width] duration-150 ease-out ${
+                      hoverValue !== null
+                        ? "drop-shadow-[0_0_8px_rgba(255,122,41,0.55)]"
+                        : ""
+                    }`}
+                    style={{ width: `${fillFraction * 100}%` }}
+                    aria-hidden="true"
+                  >
+                    <StarIcon className={starSizeClass} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
-          {/* Interactive layer: two invisible click/hover halves per star.
-              Since each half is a real DOM element occupying a defined
-              slot, "which value does the cursor correspond to" becomes a
-              trivial DOM question rather than pixel math against a row
-              whose stars have transparent padding at their edges. */}
+          {/* Interactive overlay — one row of 10 half-buttons matching
+              the star layout exactly (including the gap between stars),
+              so cursor-to-value mapping is "which half did the pointer
+              enter", never pixel math. */}
           <div
             className={`absolute inset-0 flex ${gapClass}`}
             role="slider"

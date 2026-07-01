@@ -33,7 +33,7 @@ async function requireUserId() {
 }
 
 /**
- * Rate a title 0.25-5.0 stars, with an optional written comment. Rating
+ * Rate a title 0.5-5.0 stars, with an optional written comment. Rating
  * something you haven't explicitly added to the watchlist still works —
  * we upsert a "watched" WatchlistItem alongside the rating, since rating
  * a title implies you've watched it. This lets a user rate directly from

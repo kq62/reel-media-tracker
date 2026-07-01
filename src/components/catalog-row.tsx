@@ -4,8 +4,6 @@ import { useRef } from "react";
 import { MediaCard } from "@/components/media-card";
 import type { TmdbSearchResult } from "@/lib/tmdb";
 
-const SCROLL_AMOUNT = 600;
-
 export function CatalogRow({
   title,
   items,
@@ -17,8 +15,15 @@ export function CatalogRow({
 
   if (items.length === 0) return null;
 
-  function scrollBy(amount: number) {
-    scrollRef.current?.scrollBy({ left: amount, behavior: "smooth" });
+  function scrollByPage(direction: 1 | -1) {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Scroll ~90% of the visible container width — enough that a
+    // significant chunk moves per click, but with just enough overlap
+    // that a card that was on the edge is still partly visible after
+    // the scroll, giving a sense of continuity rather than a jump-cut.
+    const amount = el.clientWidth * 0.9 * direction;
+    el.scrollBy({ left: amount, behavior: "smooth" });
   }
 
   return (
@@ -56,14 +61,14 @@ export function CatalogRow({
             screens wide enough for a mouse to be the likely input —
             touch devices already have native swipe. */}
         <button
-          onClick={() => scrollBy(-SCROLL_AMOUNT)}
+          onClick={() => scrollByPage(-1)}
           aria-label={`Scroll ${title} left`}
           className="absolute top-1/2 left-2 hidden -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/95 p-2.5 opacity-0 shadow-lg backdrop-blur-sm transition duration-200 hover:scale-110 hover:border-accent hover:text-accent active:scale-95 group-hover/row:opacity-100 sm:flex"
         >
           <ChevronIcon direction="left" />
         </button>
         <button
-          onClick={() => scrollBy(SCROLL_AMOUNT)}
+          onClick={() => scrollByPage(1)}
           aria-label={`Scroll ${title} right`}
           className="absolute top-1/2 right-2 hidden -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/95 p-2.5 opacity-0 shadow-lg backdrop-blur-sm transition duration-200 hover:scale-110 hover:border-accent hover:text-accent active:scale-95 group-hover/row:opacity-100 sm:flex"
         >

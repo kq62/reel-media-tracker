@@ -49,43 +49,57 @@ export default async function RecommendationsPage() {
     );
   }
 
-  const likedTitleData: LikedTitleData[] = await Promise.all(
-    likedRatings.map(async (rating) => {
-      const mediaType = rating.mediaType as MediaType;
-      const [detail, keywords] = await Promise.all([
-        getMediaDetail(mediaType, rating.tmdbId),
-        getTitleKeywords(mediaType, rating.tmdbId),
-      ]);
-      return {
-        tmdbId: rating.tmdbId,
-        mediaType,
-        score: rating.score,
-        genres: rating.title.genres,
-        cast: detail.credits.cast.slice(0, CAST_MEMBERS_PER_TITLE).map((m) => m.name),
-        keywords: keywords.map((k) => k.name),
-      };
-    })
-  );
+  let recommendations: Awaited<ReturnType<typeof gatherAndScoreCandidates>>;
+  let seedTitles: { title: string; score: number }[];
 
-  const seenItems = await prisma.watchlistItem.findMany({
-    where: { userId },
-    select: { tmdbId: true, mediaType: true },
-  });
-  const seenKeys = new Set([
-    ...seenItems.map((i) => `${i.mediaType}-${i.tmdbId}`),
-    ...likedRatings.map((r) => `${r.mediaType}-${r.tmdbId}`),
-  ]);
+  try {
+    const likedTitleData: LikedTitleData[] = await Promise.all(
+      likedRatings.map(async (rating) => {
+        const mediaType = rating.mediaType as MediaType;
+        const [detail, keywords] = await Promise.all([
+          getMediaDetail(mediaType, rating.tmdbId),
+          getTitleKeywords(mediaType, rating.tmdbId),
+        ]);
+        return {
+          tmdbId: rating.tmdbId,
+          mediaType,
+          score: rating.score,
+          genres: rating.title.genres,
+          cast: detail.credits.cast.slice(0, CAST_MEMBERS_PER_TITLE).map((m) => m.name),
+          keywords: keywords.map((k) => k.name),
+        };
+      })
+    );
 
-  const recommendations = await gatherAndScoreCandidates({
-    likedTitleData,
-    seenKeys,
-    limit: 20,
-  });
+    const seenItems = await prisma.watchlistItem.findMany({
+      where: { userId },
+      select: { tmdbId: true, mediaType: true },
+    });
+    const seenKeys = new Set([
+      ...seenItems.map((i) => `${i.mediaType}-${i.tmdbId}`),
+      ...likedRatings.map((r) => `${r.mediaType}-${r.tmdbId}`),
+    ]);
 
-  const seedTitles = likedRatings.map((r) => ({
-    title: r.title.title,
-    score: r.score,
-  }));
+    recommendations = await gatherAndScoreCandidates({
+      likedTitleData,
+      seenKeys,
+      limit: 20,
+    });
+    seedTitles = likedRatings.map((r) => ({
+      title: r.title.title,
+      score: r.score,
+    }));
+  } catch {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Recommended for You</h1>
+        <EmptyState
+          title="Recommendations unavailable right now"
+          description="Couldn't reach the movie database. Try again in a moment."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

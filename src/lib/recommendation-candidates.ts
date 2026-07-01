@@ -24,7 +24,7 @@ import {
 //   obscure, direct-to-video, or incomplete TMDB entries — filtering
 //   them out significantly improves the visual quality of the list.
 const MIN_VOTE_AVERAGE = 6.5;
-const MIN_VOTE_COUNT = 500;
+const MIN_VOTE_COUNT = 100;
 
 function isQualityTitle(item: TmdbSearchResult): boolean {
   return (

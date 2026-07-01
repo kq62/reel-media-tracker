@@ -1,15 +1,10 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import type { Session } from "next-auth";
 import type { ReactNode } from "react";
 
-export function AuthSessionProvider({
-  children,
-  session,
-}: {
-  children: ReactNode;
-  session: Session | null;
-}) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+// Kept for client components elsewhere that use useSession(). The navbar
+// no longer depends on this — it reads the session server-side directly.
+export function AuthSessionProvider({ children }: { children: ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>;
 }

@@ -1,10 +1,16 @@
-"use client";
-
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { LogoutButton } from "@/components/logout-button";
 
-export function Navbar() {
-  const { data: session, status } = useSession();
+// Server Component: reads the session directly on the server instead of
+// via useSession() on the client. Since the dashboard (also server-read)
+// works, this guarantees the authenticated navbar links render correctly
+// — no dependency on a client-side /api/auth/session fetch that can be
+// slow or fail on Vercel.
+export async function Navbar() {
+  const session = await getServerSession(authOptions);
+  const isAuthenticated = Boolean(session?.user);
 
   return (
     <header className="border-b border-border bg-surface">
@@ -23,15 +29,30 @@ export function Navbar() {
             <Link href="/search" className="hover:text-foreground">
               Search
             </Link>
+            {isAuthenticated && (
+              <Link href="/recommendations" className="hover:text-foreground">
+                For You
+              </Link>
+            )}
           </nav>
         </div>
 
         <nav className="flex items-center gap-4 text-sm">
-          {status === "loading" && (
-            <span className="text-muted">Loading…</span>
-          )}
-
-          {status === "unauthenticated" && (
+          {isAuthenticated ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="text-muted hover:text-foreground"
+              >
+                Dashboard
+              </Link>
+              <span className="hidden text-muted sm:inline">
+                Signed in as{" "}
+                <span className="text-foreground">{session!.user?.name}</span>
+              </span>
+              <LogoutButton />
+            </>
+          ) : (
             <>
               <Link href="/login" className="text-muted hover:text-foreground">
                 Log in
@@ -42,33 +63,6 @@ export function Navbar() {
               >
                 Sign up
               </Link>
-            </>
-          )}
-
-          {status === "authenticated" && (
-            <>
-              <Link
-                href="/recommendations"
-                className="text-muted hover:text-foreground"
-              >
-                For You
-              </Link>
-              <Link
-                href="/dashboard"
-                className="text-muted hover:text-foreground"
-              >
-                Dashboard
-              </Link>
-              <span className="hidden text-muted sm:inline">
-                Signed in as{" "}
-                <span className="text-foreground">{session.user?.name}</span>
-              </span>
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-md border border-border px-3 py-1.5 hover:bg-surface-raised"
-              >
-                Log out
-              </button>
             </>
           )}
         </nav>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { Navbar } from "@/components/navbar";
@@ -17,22 +19,23 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Reel — Personal Media Tracker",
-  description:
-    "Track what you watch, rate it, and discover what to watch next.",
+  description: "Track what you watch, rate it, and discover what to watch next.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthSessionProvider>
+        <AuthSessionProvider session={session}>
           <Navbar />
           <main className="mx-auto w-full max-w-[1440px] flex-1 px-6 py-10">
             {children}

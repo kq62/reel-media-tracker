@@ -23,9 +23,14 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")       // pooler (port 6543) — used by the app at runtime
-  directUrl = env("DIRECT_URL")         // direct connection (port 5432) — used by Prisma for queries
+  provider = "postgresql"
+  // Use Supabase's transaction pooler (port 6543) with pgbouncer=true and
+  // connection_limit=1. The pgbouncer flag tells Prisma it's talking to a
+  // pooler so it avoids features incompatible with PgBouncer (like prepared
+  // statements). connection_limit=1 means each serverless function instance
+  // uses one connection, letting the pooler do its job of multiplexing many
+  // function instances across Supabase's actual connection pool.
+  url = env("DATABASE_URL")
 }
 
 model User {

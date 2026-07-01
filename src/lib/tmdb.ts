@@ -25,7 +25,8 @@ export interface TmdbSearchResult {
   poster_path: string | null;
   overview: string;
   vote_average: number;
-  vote_count: number; // needed to filter out statistically meaningless ratings
+  vote_count: number;
+  genre_ids?: number[]; // present on list/search endpoints, absent on detail
 }
 
 export interface TmdbCastMember {

@@ -1,0 +1,95 @@
+// Prisma schema for the Personal Media Tracker & Discovery Platform.
+//
+// Phase 1 added the User model for credentials-based auth.
+// Phase 3 adds the watchlist/ratings layer:
+//   - Title: a local cache of TMDB metadata (name, poster, genres) for
+//     any title a user has interacted with. Caching this means the
+//     dashboard can render a list of watchlist/rating items without
+//     making a TMDB API call per row.
+//   - WatchlistItem: a user's "planned" or "watched" status for a title.
+//   - Rating: a user's 0.25-5.0 star score for a title (quarter-star
+//     precision, à la Letterboxd), plus an optional written comment.
+//
+// We're using NextAuth with JWT sessions (see src/lib/auth.ts), so we
+// don't need the Account/Session/VerificationToken tables that NextAuth's
+// database adapter would otherwise require — there's nothing to persist
+// for a session that lives entirely in a signed cookie. If Google/GitHub
+// OAuth is added later, that's the point to introduce
+// @next-auth/prisma-adapter and those tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String // bcrypt hash
+  createdAt DateTime @default(now())
+
+  watchlistItems WatchlistItem[]
+  ratings        Rating[]
+
+  @@map("users")
+}
+
+// TMDB doesn't scope ids globally — movie #550 and tv #550 are unrelated
+// titles — so every reference to a title in this schema uses the pair
+// (tmdbId, mediaType) together, never tmdbId alone.
+model Title {
+  tmdbId     Int
+  mediaType  String // "movie" | "tv"
+  title      String
+  posterPath String?
+  genres     String[] // e.g. ["Drama", "Thriller"] — denormalized on
+  // purpose: this is a read-mostly cache for display and for the
+  // "most-watched genres" stat, not a source of truth, so it doesn't
+  // need a normalized Genre table.
+  cachedAt DateTime @default(now())
+
+  watchlistItems WatchlistItem[]
+  ratings        Rating[]
+
+  @@id([tmdbId, mediaType])
+  @@map("titles")
+}
+
+model WatchlistItem {
+  id        String    @id @default(cuid())
+  userId    String
+  tmdbId    Int
+  mediaType String
+  status    String    @default("planned") // "planned" | "watched"
+  addedAt   DateTime  @default(now())
+  watchedAt DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title Title @relation(fields: [tmdbId, mediaType], references: [tmdbId, mediaType])
+
+  // One watchlist entry per title per user — adding an already-added
+  // title is a no-op rather than a duplicate row.
+  @@unique([userId, tmdbId, mediaType])
+  @@map("watchlist_items")
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  userId    String
+  tmdbId    Int
+  mediaType String
+  score     Float // 0.25-5.0 in quarter-star steps, validated at the API layer
+  comment   String? // optional short written review
+  ratedAt   DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title Title @relation(fields: [tmdbId, mediaType], references: [tmdbId, mediaType])
+
+  @@unique([userId, tmdbId, mediaType])
+  @@map("ratings")
+}

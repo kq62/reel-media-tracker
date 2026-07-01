@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/*
+  Design direction: a quiet, dark "screening room" backdrop so posters
+  and stills stay the visual focus, lifted by one vivid marquee-orange
+  accent for primary actions and a cool teal for the "watched" state.
+  Space Grotesk gives headings a slightly geometric, ticket-stub
+  character; Inter stays out of the way for body copy.
+*/
+@theme inline {
+  --color-background: #0d0f14;
+  --color-surface: #161922;
+  --color-surface-raised: #1f232f;
+  --color-border: #2a2f3d;
+
+  --color-foreground: #f3f1ec;
+  --color-muted: #9a9fae;
+
+  --color-accent: #ff7a29;
+  --color-accent-foreground: #1f1206;
+  --color-watched: #3fb6a8;
+
+  --color-danger: #e5675f;
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), sans-serif;
+}
+
+/* Used by horizontally-scrolling catalog rows on the home page — native
+   scroll/swipe still works, the scrollbar itself is just visually
+   superfluous next to a row of posters that already implies "more". */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+/*
+  Scroll-driven poster reveals — Chrome/Edge/Opera today (Firefox behind
+  a flag). Uses `animation-timeline: view()`, which drives the animation
+  based on where the element is inside its scroll container rather than
+  the passage of time. Falls back to no animation in browsers without
+  support (Safari, older Firefox) — a poster that just appears is a
+  perfectly acceptable degraded state; nothing breaks.
+
+  The `.poster-reveal-x` variant is scoped to a horizontally-scrolling
+  ancestor via `view(inline)`, so it animates on horizontal scroll (the
+  catalog rows). The default vertical variant animates as the browser
+  page itself scrolls — used by the grid on /browse.
+*/
+@keyframes poster-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .poster-reveal {
+    animation: poster-reveal linear both;
+    animation-timeline: view();
+    /* Only run the entry half of the timeline — otherwise the poster
+       would also animate back out as it left the top of the viewport,
+       which reads as broken rather than intentional. */
+    animation-range: entry 0% entry 60%;
+  }
+
+  .poster-reveal-x {
+    animation: poster-reveal linear both;
+    animation-timeline: view(inline);
+    animation-range: entry 0% entry 80%;
+  }
+}
+
+/* Simple time-based fade-in for freshly-loaded "Show more" content —
+   the browse grid re-renders in place with a bunch of new cards, and
+   without this they'd all pop in at once. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/*
+  Respect the user's OS-level "reduce motion" preference. Anyone with
+  vestibular sensitivity or motion-sickness triggers has this on for a
+  reason — no page's poster reveals are worth overriding that.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .poster-reveal,
+  .poster-reveal-x,
+  .animate-fade-in {
+    animation: none;
+  }
+}

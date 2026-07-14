@@ -53,30 +53,6 @@ prisma/
   schema.prisma
 ```
 
-## Decisions worth being able to explain in an interview
-
-- **NextAuth v4, not the v5 beta.** v5 (Auth.js) has nicer App Router
-  ergonomics, but it's been in beta for a long time. For something as
-  security-sensitive as auth, I chose the stable, fully-documented major
-  version over a beta API surface.
-- **JWT sessions, no database adapter.** NextAuth's Credentials provider
-  requires JWT sessions (there's no OAuth handshake for a database
-  adapter to persist), so the session is a signed cookie, not a database
-  row. That's why the schema has no `Session`/`Account` tables — they'd
-  be unused. If Google/GitHub sign-in gets added later, that's the point
-  to add `@next-auth/prisma-adapter` and those tables.
-- **Signup is a hand-rolled API route.** NextAuth manages signing *in*,
-  not registration — there's no concept of "creating an account" baked
-  into a Credentials provider. So `/api/auth/signup` does the
-  validation (Zod) + hashing (bcrypt) + insert, and the signup page calls
-  NextAuth's `signIn()` immediately afterward so the user doesn't have to
-  log in a second time with credentials they just typed.
-- **A Prisma singleton (`src/lib/prisma.ts`).** Next.js hot-reloads
-  modules in dev, which would otherwise spin up a new `PrismaClient`
-  (and a new connection pool) on every save. Stashing the instance on
-  `global` survives reloads in dev; in production each serverless
-  invocation gets its own module scope anyway, so it's a no-op there.
-
 ## Running it locally
 
 ### 1. Get a Postgres database

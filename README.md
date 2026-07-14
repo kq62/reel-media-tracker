@@ -1,6 +1,6 @@
 # 🎬 Reel — Personal Media Tracker & Discovery Platform
 
-![Home page with catalog rows](docs/screenshots/home.png)
+![Home page with catalog rows](public/screenshots/home.png)
 
 ---
 
@@ -10,13 +10,13 @@
 - **Search and browse** movies and TV shows, pulled live from The Movie Database (TMDB)
 - **View details** for any movie or show — synopsis, cast, trailer, and where to watch it in your region
 
-  ![Movie detail page](docs/screenshots/detail-page.png)
+  ![Movie detail page](public/screenshots/detail-page.png)
 
 - **Build a watchlist** — mark something as planned to watch, then mark it watched later
 - **Rate what you've watched** using a 5-star rating (half-star precision, like Letterboxd) and optionally write a short review
 - **See your stats on a dashboard** — your watchlist, your ratings, and a breakdown of your most-watched genres
 
-  ![Dashboard](docs/screenshots/dashboard.png)
+  ![Dashboard](public/screenshots/dashboard.png)
 
 - **Browse curated rows** on the home page (Trending, Popular Movies, Top Rated, Action, Comedy, Horror, etc.), similar to Netflix's homepage layout
 - **Filter by genre** on the browse page
@@ -137,7 +137,7 @@ Everything below is for anyone technical who wants the actual reasoning behind h
 
 ## Star ratings and reviews
 
-![Star rating widget in use](docs/screenshots/c.gif)
+![Star rating widget in use](public/screenshots/star-rating.gif)
 
 - **Quarter-star (later half-star) precision from one clip percentage, not per-star math.** The widget is two identically-laid-out rows of star icons stacked on top of each other — a muted outline row underneath, and an accent-filled row on top clipped to `(value / 5) * 100%` width with `overflow: hidden`. Clipping the top row at any percentage reveals a proportional amount of filled stars automatically, so there's no need to calculate each star's fill individually.
 - **A comment can't exist without a score.** `comment` is treated as dependent on `score` in both the schema and UI — the "Add a review" control only renders once `score !== null`, avoiding a half-finished "review with no rating" state.
@@ -146,7 +146,7 @@ Everything below is for anyone technical who wants the actual reasoning behind h
 
 ## Home page and catalog rows
 
-![Catalog rows scrolling](docs/screenshots/catalog-rows.gif)
+![Catalog rows scrolling](public/screenshots/catalog-rows.gif)
 
 - **The home page calls TMDB seven times and tolerates partial failure**, using `Promise.allSettled` instead of `Promise.all` — if one catalog request fails, the rest of the rows still render instead of the whole page blanking.
 - **Catalogs live on the home page; `/browse` stays a flat grid.** Different jobs: the home page is for casual discovery across several angles, `/browse` is for "show me everything trending right now" in one scannable view.

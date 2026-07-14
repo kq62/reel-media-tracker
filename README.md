@@ -1,8 +1,6 @@
 # 🎬 Reel — Personal Media Tracker & Discovery Platform
 
-Reel is a web app for tracking what you watch, rating it, and finding what to watch next. Think of it as a personal movie and TV diary, similar in spirit to Letterboxd, but covering both movies and TV shows.
-
-This README has two parts: a plain overview anyone can follow, and a technical deep-dive further down for anyone who wants to see how it's actually built.
+![Home page with catalog rows](docs/screenshots/home.png)
 
 ---
 
@@ -11,9 +9,15 @@ This README has two parts: a plain overview anyone can follow, and a technical d
 - **Sign up and log in** with an email and password
 - **Search and browse** movies and TV shows, pulled live from The Movie Database (TMDB)
 - **View details** for any movie or show — synopsis, cast, trailer, and where to watch it in your region
+
+  ![Movie detail page](docs/screenshots/detail-page.png)
+
 - **Build a watchlist** — mark something as planned to watch, then mark it watched later
 - **Rate what you've watched** using a 5-star rating (half-star precision, like Letterboxd) and optionally write a short review
 - **See your stats on a dashboard** — your watchlist, your ratings, and a breakdown of your most-watched genres
+
+  ![Dashboard](docs/screenshots/dashboard.png)
+
 - **Browse curated rows** on the home page (Trending, Popular Movies, Top Rated, Action, Comedy, Horror, etc.), similar to Netflix's homepage layout
 - **Filter by genre** on the browse page
 
@@ -34,6 +38,17 @@ This README has two parts: a plain overview anyone can follow, and a technical d
 Pick one of these:
 - **Local**: install Postgres on your machine, then run `createdb media_tracker`
 - **Supabase**: create a free project, then copy the connection string from Project Settings → Database
+
+  ⚠️ **If you're using Supabase, this one extra step matters.** Supabase's copy-string button gives you a plain connection string that works for any Postgres client — but this project uses Prisma, which needs two extra query params added to the end, or you'll hit errors like `prepared statement "s2" already exists`:
+  ```
+  ?pgbouncer=true&connection_limit=1
+  ```
+  So your `DATABASE_URL` should look like:
+  ```
+  postgresql://postgres.xxxx:password@aws-x-xxxx.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+  ```
+  This isn't a real Postgres setting — it's something Prisma specifically looks for, so Supabase has no way to include it automatically.
+
 - **Railway**: create a new project → Add PostgreSQL → copy the connection string
 
 ### Step 2: Get a free TMDB API key
@@ -122,12 +137,16 @@ Everything below is for anyone technical who wants the actual reasoning behind h
 
 ## Star ratings and reviews
 
+![Star rating widget in use](docs/screenshots/c.gif)
+
 - **Quarter-star (later half-star) precision from one clip percentage, not per-star math.** The widget is two identically-laid-out rows of star icons stacked on top of each other — a muted outline row underneath, and an accent-filled row on top clipped to `(value / 5) * 100%` width with `overflow: hidden`. Clipping the top row at any percentage reveals a proportional amount of filled stars automatically, so there's no need to calculate each star's fill individually.
 - **A comment can't exist without a score.** `comment` is treated as dependent on `score` in both the schema and UI — the "Add a review" control only renders once `score !== null`, avoiding a half-finished "review with no rating" state.
 - **Star-centering bug and its real fix.** Early on, hovering the visual center of a star sometimes filled the wrong amount because of `gap-1.5` spacing between stars — the gap wasn't part of either star's clickable area, so the fill percent didn't map cleanly to star boundaries. The properly fixed version restructures the widget so each half of each star is its own DOM element with its own `onMouseEnter`/`onClick` — which value the cursor maps to is now a DOM question, not a pixel-math one, so the visual and interactive centers can't drift apart.
 - **Half-star, not quarter-star, in the final version** (`STEP = 0.5`), validated with a Zod `refine` checking `score * 2` is a whole number — matching the Letterboxd standard.
 
 ## Home page and catalog rows
+
+![Catalog rows scrolling](docs/screenshots/catalog-rows.gif)
 
 - **The home page calls TMDB seven times and tolerates partial failure**, using `Promise.allSettled` instead of `Promise.all` — if one catalog request fails, the rest of the rows still render instead of the whole page blanking.
 - **Catalogs live on the home page; `/browse` stays a flat grid.** Different jobs: the home page is for casual discovery across several angles, `/browse` is for "show me everything trending right now" in one scannable view.

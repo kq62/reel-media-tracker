@@ -1,4 +1,4 @@
-# Reel — Personal Media Tracker & Discovery Platform
+# Reel - Personal Media Tracker & Discovery Platform
 
 A full-stack app for tracking what you watch, rating it, and discovering
 what to watch next, built with Next.js (App Router), PostgreSQL, Prisma,

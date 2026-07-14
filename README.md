@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # 🎬 Reel — Personal Media Tracker & Discovery Platform
+=======
+# Reel - Personal Media Tracker & Discovery Platform
+>>>>>>> edb15160de63ed6fcddf462af2f8cf058fde3bb9
 
 Reel is a web app for tracking what you watch, rating it, and finding what to watch next. Think of it as a personal movie and TV diary, similar in spirit to Letterboxd, but covering both movies and TV shows.
 
